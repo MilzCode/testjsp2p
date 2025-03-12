@@ -1,8 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef } from "react";
 import Peer from "peerjs";
-import { nanoid } from "nanoid";
-
-const generateRoomId = () => nanoid(4); // Genera una ID de 4 caracteres
 
 const CardGame = () => {
   const [section, setSection] = useState("menu"); // "menu", "create", "join", "game"
@@ -14,21 +11,21 @@ const CardGame = () => {
   const peerRef = useRef(null);
   const connRef = useRef(null);
 
-  useEffect(() => {
-    if (!peerRef.current) {
-      const peer = new Peer(generateRoomId().toLowerCase(), {
+  const createRoom = () => {
+    if (roomId.trim()) {
+      setIsHost(true);
+      peerRef.current = new Peer(roomId, {
         host: "0.peerjs.com",
         port: 443,
         path: "/",
         secure: true,
       });
-      peerRef.current = peer;
 
-      peer.on("open", (id) => {
+      peerRef.current.on("open", (id) => {
         setRoomId(id);
       });
 
-      peer.on("connection", (conn) => {
+      peerRef.current.on("connection", (conn) => {
         connRef.current = conn;
         setConnected(true);
         setSection("game");
@@ -36,24 +33,30 @@ const CardGame = () => {
           setMessages((prev) => [...prev, data]);
         });
       });
-    }
-  }, []);
 
-  const createRoom = () => {
-    setIsHost(true);
-    setSection("game");
+      setSection("game");
+    }
   };
 
   const joinRoom = () => {
-    if (!peerRef.current || !roomId) return;
-    const conn = peerRef.current.connect(roomId);
-    connRef.current = conn;
-    conn.on("open", () => {
-      setConnected(true);
-      setSection("game");
+    if (!roomId) return;
+    peerRef.current = new Peer({
+      host: "0.peerjs.com",
+      port: 443,
+      path: "/",
+      secure: true,
     });
-    conn.on("data", (data) => {
-      setMessages((prev) => [...prev, data]);
+
+    peerRef.current.on("open", () => {
+      const conn = peerRef.current.connect(roomId);
+      connRef.current = conn;
+      conn.on("open", () => {
+        setConnected(true);
+        setSection("game");
+      });
+      conn.on("data", (data) => {
+        setMessages((prev) => [...prev, data]);
+      });
     });
   };
 
@@ -76,7 +79,13 @@ const CardGame = () => {
 
       {section === "create" && (
         <div className="flex flex-col gap-4">
-          <p>ID de Sala: <span className="font-bold">{roomId}</span></p>
+          <input
+            type="text"
+            placeholder="Ingresa una ID para la sala"
+            value={roomId}
+            onChange={(e) => setRoomId(e.target.value)}
+            className="px-2 py-1 text-black"
+          />
           <button onClick={createRoom} className="px-4 py-2 bg-blue-600 rounded">Iniciar</button>
         </div>
       )}
