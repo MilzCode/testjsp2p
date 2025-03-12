@@ -9,7 +9,7 @@ const CardGame = () => {
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState("");
   const peerRef = useRef(null);
-  const connRef = useRef(null);
+  const connectionsRef = useRef([]); // Array de conexiones para broadcast (solo en el host)
 
   const createRoom = () => {
     if (roomId.trim()) {
@@ -23,18 +23,17 @@ const CardGame = () => {
 
       peerRef.current.on("open", (id) => {
         setRoomId(id);
+        setConnected(true);
+        setSection("game");
       });
 
       peerRef.current.on("connection", (conn) => {
-        connRef.current = conn;
-        setConnected(true);
-        setSection("game");
+        connectionsRef.current.push(conn); // Agrega la conexión al array
         conn.on("data", (data) => {
           setMessages((prev) => [...prev, data]);
+          broadcastMessage(data, conn); // Reenvía el mensaje a todos menos al que lo envió
         });
       });
-
-      setSection("game");
     }
   };
 
@@ -49,11 +48,12 @@ const CardGame = () => {
 
     peerRef.current.on("open", () => {
       const conn = peerRef.current.connect(roomId);
-      connRef.current = conn;
+      connectionsRef.current.push(conn);
       conn.on("open", () => {
         setConnected(true);
         setSection("game");
       });
+
       conn.on("data", (data) => {
         setMessages((prev) => [...prev, data]);
       });
@@ -61,11 +61,24 @@ const CardGame = () => {
   };
 
   const sendMessage = () => {
-    if (connRef.current && message.trim()) {
-      connRef.current.send(message);
-      setMessages((prev) => [...prev, `Tú: ${message}`]);
+    if (message.trim()) {
+      const msg = `Tú: ${message}`;
+      setMessages((prev) => [...prev, msg]);
+
+      // Enviar a todos los peers conectados
+      connectionsRef.current.forEach((conn) => conn.send(message));
+
       setMessage("");
     }
+  };
+
+  // Reenvía mensajes a todos los clientes excepto al remitente original
+  const broadcastMessage = (msg, sender) => {
+    connectionsRef.current.forEach((conn) => {
+      if (conn !== sender) {
+        conn.send(msg);
+      }
+    });
   };
 
   return (
@@ -84,6 +97,7 @@ const CardGame = () => {
             placeholder="Ingresa una ID para la sala"
             value={roomId}
             onChange={(e) => setRoomId(e.target.value)}
+            onKeyPress={(e) => e.key === "Enter" && createRoom()}
             className="px-2 py-1 text-black"
           />
           <button onClick={createRoom} className="px-4 py-2 bg-blue-600 rounded">Iniciar</button>
@@ -97,6 +111,7 @@ const CardGame = () => {
             placeholder="ID de Sala"
             value={roomId}
             onChange={(e) => setRoomId(e.target.value)}
+            onKeyPress={(e) => e.key === "Enter" && joinRoom()}
             className="px-2 py-1 text-black"
           />
           <button onClick={joinRoom} className="px-4 py-2 bg-green-600 rounded">Unirse</button>
