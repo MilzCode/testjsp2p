@@ -29,9 +29,10 @@ const ChatGame = () => {
 
       peerRef.current.on("connection", (conn) => {
         connectionsRef.current.push(conn); // Agrega la conexión al array
-        setMessages((prev) => [...prev, "Alguien entró en la sala"]);
-        broadcastMessage("Alguien entró en la sala", conn);
-        
+        conn.on("open", () => {
+          setMessages((prev) => [...prev, "Alguien entró en la sala"]);
+          broadcastMessage("Alguien entró en la sala", conn);
+        });
         conn.on("data", (data) => {
           setMessages((prev) => [...prev, data]);
           broadcastMessage(data, conn); // Reenvía el mensaje a todos menos al que lo envió
@@ -55,9 +56,7 @@ const ChatGame = () => {
       conn.on("open", () => {
         setConnected(true);
         setSection("game");
-        conn.send("Alguien entró en la sala");
       });
-
       conn.on("data", (data) => {
         setMessages((prev) => [...prev, data]);
       });
