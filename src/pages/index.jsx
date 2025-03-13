@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import Peer from "peerjs";
 
-const CardGame = () => {
+const ChatGame = () => {
   const [section, setSection] = useState("menu"); // "menu", "create", "join", "game"
   const [isHost, setIsHost] = useState(false);
   const [roomId, setRoomId] = useState("");
@@ -29,6 +29,9 @@ const CardGame = () => {
 
       peerRef.current.on("connection", (conn) => {
         connectionsRef.current.push(conn); // Agrega la conexión al array
+        setMessages((prev) => [...prev, "Alguien entró en la sala"]);
+        broadcastMessage("Alguien entró en la sala", conn);
+        
         conn.on("data", (data) => {
           setMessages((prev) => [...prev, data]);
           broadcastMessage(data, conn); // Reenvía el mensaje a todos menos al que lo envió
@@ -52,6 +55,7 @@ const CardGame = () => {
       conn.on("open", () => {
         setConnected(true);
         setSection("game");
+        conn.send("Alguien entró en la sala");
       });
 
       conn.on("data", (data) => {
@@ -142,4 +146,4 @@ const CardGame = () => {
   );
 };
 
-export default CardGame;
+export default ChatGame;
